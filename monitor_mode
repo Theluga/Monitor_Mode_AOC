@@ -1,0 +1,322 @@
+#!/bin/bash
+
+# monitor_mode -l value_of_brightness -m mode_of_the_monitor ######
+# to do: -v volume -red value_red -green value_green -blue value_blue
+
+## call for sudo password to not need to call as sudo
+[ "$UID" -eq 0 ] || exec sudo bash "$0" "$@"
+
+#########################################
+# Mount i2c-dev module.
+########################################
+
+function setup() {
+    modprobe i2c-dev
+}
+
+# Function to check the display mode
+check_display_mode() {
+    # Run the ddcutil command to get the display mode (VCP code 0xdc)
+    result=$(ddcutil --sn=WXDO4XA004311 getvcp 0xdc)
+
+    # Extract the 'sl' value from the result
+    sl_value=$(echo "$result" | grep -oP 'sl=0x[0-9a-fA-F]+' | awk -F= '{print $2}')
+
+    # Determine the display mode based on the 'sl' value
+    case "$sl_value" in
+        0x00)  # Default
+            echo "Display Mode: Default (0x00)"
+            ;;
+        0x0e)  # Mode 1 (Gamer 1)
+            echo "Display Mode: Gamer 1 (0x0e)"
+            ;;
+        0x0f)  # Mode 2 (Gamer 2)
+            echo "Display Mode: Gamer 2 (0x0f)"
+            ;;
+        0x10)  # Game3
+            echo "Display Mode: Game3 (0x10)"
+            ;;
+        0x0b)  # FPS Mode
+            echo "Display Mode: FPS Mode (0x0b)"
+            ;;
+        0x0d)  # Racing Mode
+            echo "Display Mode: Racing Mode (0x0d)"
+            ;;
+        0x0c)  # RTS Mode
+            echo "Display Mode: RTS Mode (0x0c)"
+            ;;
+        *)  # For unrecognized values
+            echo "Display Mode: Unknown ($sl_value)"
+            ;;
+    esac
+}
+
+# Function to check the brightness
+check_brightness() {
+    # Run the ddcutil command to get the brightness (VCP code 0x10)
+    result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x10)
+
+    # Extract the current brightness value using a more precise regex pattern
+    brightness=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+    # Display the brightness
+    if [ -z "$brightness" ]; then
+        echo "Failed to extract brightness value."
+    else
+        echo "Current Brightness: $brightness"
+    fi
+}
+
+check_contrast() {
+    # Run the ddcutil command to get the contrast 
+    result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x12)
+
+    # Extract the current contrast value using a more precise regex pattern
+    contrast=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+    # Display the brightness
+    if [ -z "$contrast" ]; then
+        echo "Failed to extract contrast value."
+    else
+        echo "Current contrast: $contrast"
+    fi
+}
+
+# Function to set the display mode
+set_mode() {
+    case $1 in
+        0)  # Default
+            ddcutil --sn=WXDO4XA004311 setvcp 0xdc 0x00
+            ;;
+        1)  # Mode 1 (Gamer 1)
+            ddcutil --sn=WXDO4XA004311 setvcp 0xdc 0x0e
+            ;;
+        2)  # Mode 2 (Gamer 2)
+            ddcutil --sn=WXDO4XA004311 setvcp 0xdc 0x0f
+            ;;
+        3)  # Game3
+            ddcutil --sn=WXDO4XA004311 setvcp 0xdc 0x10
+            ;;
+        fps)  # FPS Mode
+            ddcutil --sn=WXDO4XA004311 setvcp 0xdc 0x0b
+            ;;
+        racing)  # Racing Mode
+            ddcutil --sn=WXDO4XA004311 setvcp 0xdc 0x0d
+            ;;
+        rts)  # RTS Mode
+            ddcutil --sn=WXDO4XA004311 setvcp 0xdc 0x0c
+            ;;
+        *)  # Default behavior for unrecognized modes
+            ddcutil --sn=WXDO4XA004311 setvcp 0xdc $1
+            ;;
+    esac
+}
+
+# Function to change brightness
+change_brightness() {
+    # Validate the brightness value
+    if [[ "$1" -ge 0 && "$1" -le 100 ]]; then
+        ddcutil --sn=WXDO4XA004311 setvcp 0x10 "$1"
+    else
+        echo "Error: Brightness value must be between 0 and 100."
+        exit 1
+    fi
+}
+
+
+change_contrast() {
+    # Validate the contrast value
+    if [[ "$1" -ge 0 && "$1" -le 100 ]]; then
+        ddcutil --sn=WXDO4XA004311 setvcp 0x12 "$1"
+    else
+        echo "Error: contrast value must be between 0 and 100."
+        exit 1
+    fi
+}
+
+# Function to check or set red value
+change_or_check_red() {
+    if [ "$1" == "g" ]; then
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x16)
+        red_value=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+        if [ -z "$red_value" ]; then
+            echo "Failed to extract red value."
+        else
+            echo "Current Red Value: $red_value"
+        fi
+    elif [[ "$1" =~ ^[0-9]+$ ]]; then
+        red_value=$1
+        ddcutil --sn=WXDO4XA004311 setvcp 0x16 "$red_value"
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x16)
+        red_value=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+        if [ -z "$red_value" ]; then
+            echo "Failed to extract red value."
+        else
+            echo "Current Red Value: $red_value"
+        fi
+    else
+        echo "Error: Invalid red value. Use 'g' to get the current red value or a number to set it."
+        exit 1
+    fi
+}
+
+# Function to check or set green value
+change_or_check_green() {
+    if [ "$1" == "g" ]; then
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x18)
+        green_value=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+        if [ -z "$green_value" ]; then
+            echo "Failed to extract green value."
+        else
+            echo "Current Green Value: $green_value"
+        fi
+    elif [[ "$1" =~ ^[0-9]+$ ]]; then
+        green_value=$1
+        ddcutil --sn=WXDO4XA004311 setvcp 0x18 "$green_value"
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x18)
+        green_value=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+        if [ -z "$green_value" ]; then
+            echo "Failed to extract green value."
+        else
+            echo "Current Green Value: $green_value"
+        fi
+    else
+        echo "Error: Invalid green value. Use 'g' to get the current green value or a number to set it."
+        exit 1
+    fi
+}
+
+# Function to check or set blue value
+change_or_check_blue() {
+    if [ "$1" == "g" ]; then
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x1A)
+        blue_value=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+        if [ -z "$blue_value" ]; then
+            echo "Failed to extract blue value."
+        else
+            echo "Current Blue Value: $blue_value"
+        fi
+    elif [[ "$1" =~ ^[0-9]+$ ]]; then
+        blue_value=$1
+        ddcutil --sn=WXDO4XA004311 setvcp 0x1A "$blue_value"
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x1A)
+        blue_value=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+        if [ -z "$blue_value" ]; then
+            echo "Failed to extract blue value."
+        else
+            echo "Current Blue Value: $blue_value"
+        fi
+    else
+        echo "Error: Invalid blue value. Use 'g' to get the current blue value or a number to set it."
+        exit 1
+    fi
+}
+
+
+# Function to check or set volume value
+change_or_check_volume() {
+    if [ "$1" == "g" ]; then
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x62)
+        volume_value=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+        if [ -z "$volume_value" ]; then
+            echo "Failed to extract volume value."
+        else
+            echo "Current Volume Value: $volume_value"
+        fi
+    elif [ "$1" == "m" ]; then
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x8d)
+        mute_value=$(ddcutil --sn=WXDO4XA004311 getvcp 0x8d | grep -o 'sl=0x[0-9A-F]*' | awk -F'=' '{print $2}' | awk '{print strtonum($1)}')
+        
+        if [ 2 == "$mute_value" ]; then
+            ddcutil --sn=WXDO4XA004311 setvcp 0x8d 1
+            echo "Muted"
+        else
+            ddcutil --sn=WXDO4XA004311 setvcp 0x8d 2
+            echo "Unmuted"
+        fi
+    elif [[ "$1" =~ ^[0-9]+$ ]]; then
+        volume_value=$1
+        ddcutil --sn=WXDO4XA004311 setvcp 0x62 "$volume_value"
+        
+        result=$(ddcutil --sn=WXDO4XA004311 getvcp 0x62)
+        volume_value=$(echo "$result" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+        if [ -z "$volume_value" ]; then
+            echo "Failed to extract volume value."
+        else
+            echo "Current Volume Value: $volume_value"
+        fi
+    else
+        echo "Error: Invalid volume value. Use 'g' to get the current volume value or a number to set it."
+        exit 1
+    fi
+}
+
+
+
+
+# Function to parse command line arguments
+parse_arguments() {
+    while getopts "l:c:m:v:r:g:b:" opt; do
+        case $opt in
+            l) # Brightness
+                if [ "$OPTARG" == "g" ]; then
+                    check_brightness
+                else
+                    brightness_value=$OPTARG
+                    change_brightness "$brightness_value"
+                fi
+                ;;
+            c) # Contrast
+                if [ "$OPTARG" == "g" ]; then
+                    check_contrast
+                else
+                    contrast_value=$OPTARG
+                    change_contrast "$brightness_value"
+                fi
+                ;;
+            m) # Mode
+                if [[ "$OPTARG" =~ ^0x ]]; then
+                    mode_number=$((16#${OPTARG//0x/}))
+                else
+                    mode_number=$OPTARG
+                fi
+                set_mode "$mode_number"
+                ;;
+            v) # Volume
+                change_or_check_volume "$OPTARG"
+                ;;
+            r) # Red
+                change_or_check_red "$OPTARG"
+                ;;
+            g) # Green
+                change_or_check_green "$OPTARG"
+                ;;
+            b) # Blue
+                change_or_check_blue "$OPTARG"
+                ;;
+            :) # Missing argument for option
+                echo "Error: Option $OPTARG requires an argument."
+                exit 1
+                ;;
+            \?) # Invalid option
+                echo "Usage: $0 -l brightness_value -m mode_number [-v volume_value] [-r red_value] [-g green_value] [-b blue_value]"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Main execution flow
+setup
+parse_arguments "$@"
+check_display_mode
+check_brightness
+exit 0
