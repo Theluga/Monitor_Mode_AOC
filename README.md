@@ -153,4 +153,9 @@ Example:
 This toggles mute/unmute.
 
 ------------
+# Bugs
 
+Contrast has bug where the value is set but the monitor don't accept. 
+Running `ddcutil --sn=WXDO4XA004311 setvcp 0x12 60`
+will set the constrast but it will output: `Verification failed for feature 12`
+But the screen will change, the monitor OSD will show the previous value without updating...
