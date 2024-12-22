@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # monitor_mode -l value_of_brightness -m mode_of_the_monitor ######
-# to do: -v volume -red value_red -green value_green -blue value_blue
+
 
 ## call for sudo password to not need to call as sudo
 [ "$UID" -eq 0 ] || exec sudo bash "$0" "$@"
@@ -272,6 +272,7 @@ parse_arguments() {
                 else
                     brightness_value=$OPTARG
                     change_brightness "$brightness_value"
+                    check_brightness
                 fi
                 ;;
             c) # Contrast
@@ -284,11 +285,19 @@ parse_arguments() {
                 ;;
             m) # Mode
                 if [[ "$OPTARG" =~ ^0x ]]; then
-                    mode_number=$((16#${OPTARG//0x/}))
+                     mode_number=$((16#${OPTARG//0x/}))
+                     set_mode "$mode_number"
+                     check_display_mode
+                
+                elif [ "$OPTARG" == "g" ]; then
+                      check_display_mode
+                 
                 else
                     mode_number=$OPTARG
+                    set_mode "$mode_number"
+                    check_display_mode
                 fi
-                set_mode "$mode_number"
+                
                 ;;
             v) # Volume
                 change_or_check_volume "$OPTARG"
@@ -317,6 +326,4 @@ parse_arguments() {
 # Main execution flow
 setup
 parse_arguments "$@"
-check_display_mode
-check_brightness
 exit 0
