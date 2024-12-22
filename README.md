@@ -1,4 +1,4 @@
-# Monitor Modet
+# Monitor Mode
 
 This script allows you to control various settings of a monitor connected via DDC/CI, including brightness, contrast, volume, and color adjustments (red, green, blue). It also lets you switch between different display modes. The script uses the `ddcutil` command to interact with the monitor.
 
