@@ -112,6 +112,43 @@ set_mode() {
     esac
 }
 
+
+check_black() {
+    # Run the ddcutil command to get 
+    result_red=$(ddcutil --sn=WXDO4XA004311 getvcp 0x6c)
+    result_green=$(ddcutil --sn=WXDO4XA004311 getvcp 0x6e)
+    result_blue=$(ddcutil --sn=WXDO4XA004311 getvcp 0x70)
+
+    # Extract the current blackness value using a more precise regex pattern
+    redb=$(echo "$result_red" | grep -oP 'current value\s*=\s*\K[0-9]+')
+    greenb=$(echo "$result_green" | grep -oP 'current value\s*=\s*\K[0-9]+')
+    blueb=$(echo "$result_blue" | grep -oP 'current value\s*=\s*\K[0-9]+')
+
+
+
+    # Display the blackness
+    if [[ -z "$redb" && -z "$greenb" && -z "$blueb" ]]; then
+        echo "Failed to extract brightness value."
+    else
+        echo "Current blackness RGB: $redb, $greenb, $blueb"
+    fi
+}
+
+
+change_blackness() {
+    # Validate the blacknesss value
+    if [[ "$1" -ge 0 && "$1" -le 100 ]]; then
+        ddcutil --sn=WXDO4XA004311 setvcp 0x6c "$1"
+        ddcutil --sn=WXDO4XA004311 setvcp 0x6e "$1"
+        ddcutil --sn=WXDO4XA004311 setvcp 0x70 "$1"
+        
+    else
+        echo "Error: Blackness value must be between 0 and 100."
+        exit 1
+    fi
+}
+
+
 # Function to change brightness
 change_brightness() {
     # Validate the brightness value
@@ -264,7 +301,7 @@ change_or_check_volume() {
 
 # Function to parse command line arguments
 parse_arguments() {
-    while getopts "l:c:m:v:r:g:b:" opt; do
+    while getopts "l:d:c:m:v:r:g:b:" opt; do
         case $opt in
             l) # Brightness
                 if [ "$OPTARG" == "g" ]; then
@@ -275,6 +312,16 @@ parse_arguments() {
                     check_brightness
                 fi
                 ;;
+            d) # Darkness
+                if [ "$OPTARG" == "g" ]; then
+                    check_black
+                else
+                    blackness_value=$OPTARG
+                    change_blackness "$blackness_value"
+                    check_black
+                fi
+                ;;
+                
             c) # Contrast
                 if [ "$OPTARG" == "g" ]; then
                     check_contrast
