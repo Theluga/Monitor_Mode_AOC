@@ -4,6 +4,7 @@ This script allows you to control various settings of a monitor connected via DD
 
 ## Features
 - **Brightness Control**: Get or change the brightness of the monitor.
+- **Darkness Control**: Get or change the darkness of the monitor.
 - **Contrast Control**: Get or change the contrast of the monitor.
 - **Volume Control**: Get or change the volume level of the monitor.
 - **Color Adjustment**: Adjust red, green, and blue color channels.
@@ -31,6 +32,10 @@ Available Options:
 `-l <value_of_brightness>`
 
 Set the brightness (value between 0 and 100).
+
+`-d <value_of_brightness>`
+
+Set the darkness (value between 0 and 100).
 
 Example:
 
