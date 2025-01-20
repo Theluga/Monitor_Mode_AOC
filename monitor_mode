@@ -327,7 +327,7 @@ parse_arguments() {
                     check_contrast
                 else
                     contrast_value=$OPTARG
-                    change_contrast "$brightness_value"
+                    change_contrast "$contrast_value"
                 fi
                 ;;
             m) # Mode
